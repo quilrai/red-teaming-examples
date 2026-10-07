@@ -134,7 +134,12 @@ async def chat(body: ChatRequest, authorization: str | None = Header(default=Non
     history = sessions.pop(session_id, [])
     history.append({"role": "user", "content": body.message})
     if LLM_API_KEY:
-        reply, actions = await llm_reply(history)
+        try:
+            reply, actions = await llm_reply(history)
+        except httpx.HTTPError as error:
+            # Say why instead of a bare 500, so a misconfigured key shows up in Test connection.
+            status = getattr(getattr(error, "response", None), "status_code", None)
+            raise HTTPException(status_code=502, detail=f"model request failed (HTTP {status or 'error'})") from None
     else:
         reply, actions = rule_based_reply(body.message)
     history.append({"role": "assistant", "content": reply})

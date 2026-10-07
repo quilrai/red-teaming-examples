@@ -60,6 +60,35 @@ def test_single_frame_mode_without_a_subprotocol(monkeypatch):
     assert frames[-1]["type"] == "reply" and frames[-1]["reply"] == "Your alice balance: $420.00."
 
 
+def test_a_failing_model_is_reported_without_dropping_the_connection(monkeypatch):
+    agent = load(monkeypatch, LLM_API_KEY="set")
+
+    async def fail(_history):
+        raise agent.httpx.ConnectError("model unreachable")
+
+    monkeypatch.setattr(agent, "llm_reply", fail)
+
+    async def two_turns():
+        async with serve(agent.handle, "127.0.0.1", 0, select_subprotocol=agent.select_subprotocol,
+                         process_request=agent.check_bearer) as server:
+            port = server.sockets[0].getsockname()[1]
+            async with connect(f"ws://127.0.0.1:{port}/chat",
+                               additional_headers={"Authorization": "Bearer test-key"}) as ws:
+                await ws.recv()
+                turns = []
+                for _ in range(2):
+                    await ws.send(json.dumps({"message": "hi"}))
+                    frames = []
+                    while not frames or frames[-1]["type"] != "complete":
+                        frames.append(json.loads(await asyncio.wait_for(ws.recv(), 5)))
+                    turns.append(frames)
+                return turns
+
+    for frames in asyncio.run(two_turns()):
+        assert any(f["type"] == "error" and "model request failed" in f["error"] for f in frames)
+        assert frames[-1] == {"type": "complete", "actions": []}
+
+
 def test_rejects_a_wrong_bearer_at_the_handshake(monkeypatch):
     agent = load(monkeypatch)
     with pytest.raises(InvalidStatus):

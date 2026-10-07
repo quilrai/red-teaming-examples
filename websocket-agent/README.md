@@ -34,6 +34,8 @@ All frames are JSON text.
 
 With `STREAM=0` the reply is a single `{"type": "reply", "reply": "...", "actions": [...]}` frame.
 
+In model mode, a failed model request sends `{"type": "error", "error": "model request failed (HTTP <status>)"}` followed by an empty `complete` (or `reply`) frame, and the connection stays open.
+
 ## Console settings
 
 In **Agentic Red Teaming → New assessment → 01 Connect**, choose **WebSocket endpoint**.

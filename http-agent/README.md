@@ -35,6 +35,7 @@ curl -s http://127.0.0.1:8080/chat \
 | Request | `POST /chat`, `Authorization: Bearer <AGENT_API_KEY>`, body `{"message": "...", "session_id": "..."}`. `session_id` is optional; a new one is returned if it is missing. |
 | Response | `{"reply": "...", "session_id": "...", "actions": [{"name": "...", "arguments": {...}}]}` |
 | Health | `GET /health` returns `{"status": "ok", "mode": "rules"}` or `"llm"` |
+| Model errors | In model mode, a failed model request returns `502` with `model request failed (HTTP <status>)`, so a wrong key shows up in **Test connection** |
 
 ## Console settings
 

@@ -159,7 +159,15 @@ async def handle(ws: ServerConnection) -> None:
         history.append({"role": "user", "content": message})
         await send(ws, {"type": "typing"})
         if LLM_API_KEY:
-            reply, actions = await llm_reply(history)
+            try:
+                reply, actions = await llm_reply(history)
+            except httpx.HTTPError as error:
+                # Report it and keep the connection; an unhandled error would drop the socket.
+                status = getattr(getattr(error, "response", None), "status_code", None)
+                history.pop()
+                await send(ws, {"type": "error", "error": f"model request failed (HTTP {status or 'error'})"})
+                await send(ws, {"type": "complete", "actions": []} if STREAM else {"type": "reply", "reply": "", "actions": []})
+                continue
         else:
             reply, actions = rule_based_reply(message)
         history.append({"role": "assistant", "content": reply})
